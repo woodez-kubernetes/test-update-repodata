@@ -37,7 +37,6 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITOPS_PUSH_TOKEN }}   # PAT so PRs trigger other workflows
           branch: auto/update-repodata
           base: master
           add-paths: data/**
