@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Update repo data workflow</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --card: #ffffff; --text: #1f2328; --muted: #59636e;
+    --border: #d1d9e0; --accent: #0969da; --accent-soft: #ddf4ff;
+    --code-bg: #0d1117; --code-text: #e6edf3; --ok: #1a7f37; --warn: #9a6700;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --card: #151b23; --text: #e6edf3; --muted: #9198a1;
+      --border: #3d444d; --accent: #4493f8; --accent-soft: #12263f;
+      --code-bg: #010409; --ok: #3fb950; --warn: #d29922;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 48px 24px 32px; text-align: center;
+    border-bottom: 1px solid var(--border); background: var(--card);
+  }
+  header h1 { margin: 0 0 8px; font-size: 2rem; }
+  header p { margin: 0 auto; max-width: 680px; color: var(--muted); }
+  nav { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  nav a {
+    padding: 6px 14px; border-radius: 999px; text-decoration: none; font-size: .9rem;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; }
+  section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 28px;
+  }
+  h2 { margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { margin-top: 28px; font-size: 1.15rem; }
+  code {
+    font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--accent-soft); padding: 2px 6px; border-radius: 6px;
+  }
+  pre {
+    background: var(--code-bg); color: var(--code-text); padding: 16px 18px;
+    border-radius: 8px; overflow-x: auto; font-size: .88rem; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  pre .c { color: #8b949e; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .95rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; }
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0;
+  }
+  .callout.warn { border-color: var(--warn); }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { position: relative; padding: 4px 0 12px 44px; }
+  .steps li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 2px; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: .85rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0; }
+  .flow span {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); font-size: .9rem;
+  }
+  .flow b { color: var(--muted); }
+  .yes { color: var(--ok); font-weight: 600; }
+  .no { color: var(--warn); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Update repo data workflow</h1>
+  <p>Runs <code>scripts/generate_data.py</code> on a GitHub-hosted runner and opens (or updates)
+    a pull request from <code>auto/update-repodata</code> into <code>master</code> containing only
+    changes under <code>data/</code>. Nothing reaches <code>master</code> until someone merges that PR.</p>
+  <nav>
+    <a href="#token">GITHUB_TOKEN</a>
+    <a href="#gh">gh client</a>
+    <a href="#trigger">.trigger file</a>
+  </nav>
+</header>
+
+<main>
+
+<section>
+  <h2>At a glance</h2>
+  <div class="flow">
+    <span>Trigger</span><b>→</b>
+    <span>Fresh Ubuntu runner</span><b>→</b>
+    <span>Run generate_data.py</span><b>→</b>
+    <span>Push <code>auto/update-repodata</code></span><b>→</b>
+    <span>Open / update PR</span><b>→</b>
+    <span>You merge</span>
+  </div>
+  <table>
+    <tr><th>Trigger</th><th>How</th></tr>
+    <tr><td>Manual</td><td><code>gh workflow run update-repodata.yml</code> or <b>Run workflow</b> in the Actions tab</td></tr>
+    <tr><td>Trigger file</td><td>Push a change to <code>.trigger</code> on <code>master</code></td></tr>
+    <tr><td>Schedule</td><td>Commented out in the workflow; uncomment <code>schedule:</code> to enable</td></tr>
+  </table>
+</section>
+
+<section id="token">
+  <h2>GITHUB_TOKEN</h2>
+
+  <h3>What it is</h3>
+  <p><code>GITHUB_TOKEN</code> is a token GitHub creates automatically at the start of every
+    workflow job. You never create, store or rotate it.</p>
+  <ul>
+    <li><b>Scope:</b> only the repository the workflow runs in.</li>
+    <li><b>Lifetime:</b> expires when the job finishes (24 hours at most).</li>
+    <li><b>Permissions:</b> exactly what the workflow's <code>permissions:</code> block grants.
+      Without the block, the repository default applies (<code>read</code> in this org).</li>
+    <li><b>Identity:</b> acts as <code>github-actions[bot]</code>, so PRs it opens are authored by the bot.</li>
+    <li><b>No chaining:</b> pushes and PRs made with it do not trigger other workflows. This
+      prevents workflow loops, but it also means CI (<code>on: pull_request</code>) will not run on the data PRs.</li>
+  </ul>
+  <p><code>actions/checkout</code> and <code>peter-evans/create-pull-request</code> both use it by
+    default, so the workflow never references it explicitly.</p>
+
+  <h3>How it is allowed in this repo</h3>
+  <p>Two things must both be in place.</p>
+  <ol class="steps">
+    <li>
+      <b>Org (or repo) setting: allow Actions to create PRs.</b><br>
+      Org <b>Settings → Actions → General → Workflow permissions →</b> tick
+      <b>Allow GitHub Actions to create and approve pull requests</b>. The repo has the same
+      setting under its own <b>Settings → Actions → General</b>; the org setting must allow it first.
+      <div class="callout warn">Without it, PR creation fails with
+        <code>GitHub Actions is not permitted to create or approve pull requests</code>.</div>
+      Check it with:
+<pre><code>gh api repos/woodez-kubernetes/test-update-repodata/actions/permissions/workflow
+<span class="c"># {"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}</span></code></pre>
+    </li>
+    <li>
+      <b><code>permissions:</code> block in the workflow.</b> The default token is read-only, so the
+      workflow grants itself write access:
+<pre><code>permissions:
+  contents: write        <span class="c"># push the auto/update-repodata branch</span>
+  pull-requests: write   <span class="c"># open/update the PR</span></code></pre>
+    </li>
+  </ol>
+
+  <h3>Compared with a personal access token (PAT)</h3>
+  <p>The workflow previously used the org secret <code>GITOPS_PUSH_TOKEN</code> and was switched
+    back to <code>GITHUB_TOKEN</code> because the built-in token is safer.</p>
+  <table>
+    <tr><th></th><th><code>GITHUB_TOKEN</code></th><th>PAT in a secret (e.g. <code>GITOPS_PUSH_TOKEN</code>)</th></tr>
+    <tr><td>Created by</td><td>GitHub, per job</td><td>A person</td></tr>
+    <tr><td>Lifetime</td><td class="yes">One job</td><td class="no">Until it expires or is revoked</td></tr>
+    <tr><td>Repos</td><td class="yes">This one</td><td class="no">Every repo the token can reach</td></tr>
+    <tr><td>Permissions set by</td><td>The workflow's <code>permissions:</code> block</td><td>The token's own settings</td></tr>
+    <tr><td>Acts as</td><td><code>github-actions[bot]</code></td><td>The token owner</td></tr>
+    <tr><td>Triggers other workflows</td><td>No</td><td>Yes</td></tr>
+    <tr><td>If leaked</td><td class="yes">Effectively useless</td><td class="no">Usable as the owner until revoked</td></tr>
+  </table>
+  <div class="callout">If CI must run on the data PRs, prefer a GitHub App token
+    (<code>actions/create-github-app-token</code>) over a PAT.</div>
+</section>
+
+<section id="gh">
+  <h2>Triggering with the gh client</h2>
+  <p>Run these from inside a clone of the repo, or add
+    <code>--repo woodez-kubernetes/test-update-repodata</code>.</p>
+<pre><code><span class="c"># Start a run</span>
+gh workflow run update-repodata.yml
+
+<span class="c"># Deterministic output: fixed timestamp and seed, so a re-run produces no diff</span>
+gh workflow run update-repodata.yml -f noop=true
+
+<span class="c"># Follow the latest run until it finishes</span>
+gh run watch $(gh run list -w update-repodata.yml -L1 --json databaseId -q '.[0].databaseId')
+
+<span class="c"># List recent runs (shows trigger event and who started them)</span>
+gh run list -w update-repodata.yml
+
+<span class="c"># Show what the run did with the PR (created / updated / none)</span>
+gh run view --log $(gh run list -w update-repodata.yml -L1 --json databaseId -q '.[0].databaseId') \
+  | grep "PR operation"
+
+<span class="c"># See the data PR and its diff</span>
+gh pr list --head auto/update-repodata
+gh pr diff auto/update-repodata
+
+<span class="c"># Merge the data PR</span>
+gh pr merge auto/update-repodata --merge</code></pre>
+  <p><code>gh</code> needs to be logged in (<code>gh auth login</code>) as a user with write access to the repo.</p>
+</section>
+
+<section id="trigger">
+  <h2>Triggering with the .trigger file</h2>
+  <p>Pushing a change to <code>.trigger</code> on <code>master</code> starts the workflow. The
+    file's content does not matter; it only has to change, so write the current time into it:</p>
+<pre><code>git checkout master &amp;&amp; git pull
+date -u +%Y-%m-%dT%H:%M:%SZ &gt; .trigger
+git commit -am "Trigger data update"
+git push</code></pre>
+
+  <h3>What happens next</h3>
+  <ol class="steps">
+    <li>GitHub sees a push to <code>master</code> that touched <code>.trigger</code> and starts the workflow.</li>
+    <li>The runner checks out <code>master</code> and runs <code>scripts/generate_data.py</code> in normal
+      mode (the <code>noop</code> input exists only for manual runs).</li>
+    <li>The data PR on <code>auto/update-repodata</code> is created, or updated if one is already open.
+      Your <code>.trigger</code> commit is already on <code>master</code>, so it is not part of the PR.</li>
+    <li>Merging the data PR changes only <code>data/</code>, so it does not start another run.</li>
+  </ol>
+
+  <h3>Which pushes start a run</h3>
+  <table>
+    <tr><th>Push</th><th>Starts a run?</th></tr>
+    <tr><td>You change <code>.trigger</code> on <code>master</code></td><td class="yes">Yes</td></tr>
+    <tr><td>Workflow pushes to <code>auto/update-repodata</code></td><td class="no">No</td></tr>
+    <tr><td>You merge the data PR (only <code>data/</code>)</td><td class="no">No</td></tr>
+    <tr><td>You change <code>scripts/generate_data.py</code></td><td class="no">No</td></tr>
+    <tr><td>README, workflow or other edits</td><td class="no">No</td></tr>
+  </table>
+
+  <h3>Notes</h3>
+  <ul>
+    <li>The change must land on <code>master</code>. Editing <code>.trigger</code> on another branch
+      does nothing until it is merged.</li>
+    <li>Each trigger adds a commit to <code>master</code>. If <code>master</code> becomes protected,
+      every trigger needs its own PR, and <code>gh workflow run</code> is the simpler option.</li>
+    <li>After changing <code>scripts/generate_data.py</code>, trigger a run manually or with
+      <code>.trigger</code>.</li>
+  </ul>
+</section>
+
+</main>
+</body>
+</html>
