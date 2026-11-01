@@ -1,30 +1,30 @@
 {
-  "generated_at": "2026-11-01T20:56:09+00:00",
+  "generated_at": "2026-11-01T21:11:31+00:00",
   "records": [
     {
       "id": 1,
       "name": "item-1",
-      "value": 11
+      "value": 947
     },
     {
       "id": 2,
       "name": "item-2",
-      "value": 498
+      "value": 899
     },
     {
       "id": 3,
       "name": "item-3",
-      "value": 27
+      "value": 738
     },
     {
       "id": 4,
       "name": "item-4",
-      "value": 294
+      "value": 446
     },
     {
       "id": 5,
       "name": "item-5",
-      "value": 62
+      "value": 49
     }
   ]
 }
