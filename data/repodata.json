@@ -1,0 +1,30 @@
+{
+  "generated_at": "1970-01-01T00:00:00+00:00",
+  "records": [
+    {
+      "id": 1,
+      "name": "item-1",
+      "value": 864
+    },
+    {
+      "id": 2,
+      "name": "item-2",
+      "value": 394
+    },
+    {
+      "id": 3,
+      "name": "item-3",
+      "value": 776
+    },
+    {
+      "id": 4,
+      "name": "item-4",
+      "value": 911
+    },
+    {
+      "id": 5,
+      "name": "item-5",
+      "value": 430
+    }
+  ]
+}
