@@ -7,6 +7,11 @@ on:
         description: "Deterministic output (re-runs produce no diff)"
         type: boolean
         default: false
+  # Regenerate data when the generator script changes on master
+  push:
+    branches: [master]
+    paths:
+      - scripts/generate_data.py
   # Enable once manual tests pass
   # schedule:
   #   - cron: "0 6 * * *"
