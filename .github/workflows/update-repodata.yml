@@ -1,0 +1,46 @@
+name: Update repo data
+
+on:
+  workflow_dispatch:
+    inputs:
+      noop:
+        description: "Deterministic output (re-runs produce no diff)"
+        type: boolean
+        default: false
+  # Enable once manual tests pass
+  # schedule:
+  #   - cron: "0 6 * * *"
+
+permissions:
+  contents: write        # push the auto/update-repodata branch
+  pull-requests: write   # open/update the PR
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate data
+        run: python scripts/generate_data.py ${{ inputs.noop && '--noop' || '' }}
+
+      - name: Create or update PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto/update-repodata
+          base: master
+          add-paths: data/**
+          commit-message: "Update repo data"
+          title: "Update repo data"
+          body: "Automated data update from the `update-repodata` workflow (run ${{ github.run_id }})."
+          delete-branch: true
+
+      - name: Summary
+        run: |
+          echo "PR operation: ${{ steps.cpr.outputs.pull-request-operation || 'none' }}"
+          echo "PR URL: ${{ steps.cpr.outputs.pull-request-url }}"
